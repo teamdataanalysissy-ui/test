@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="منصة بصيرة - تحليل التقارير النصية باستخدام الذكاء الاصطناعي المتقدم">
+    <meta name="keywords" content="تحليل تقارير، ذكاء اصطناعي، تحليل نصي، استخلاص رؤى">
+    <title>منصة بصيرة - الذكاء التحليلي المتقدم</title>
+    <!-- تضمين Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- مكتبة قراءة ملفات Word -->
+    <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Cairo:wght@400;700;800&display=swap');
+        body {
+            /* استخدام خط Inter كنطاق احتياطي، والخط الكوفي (Cairo) للتحسين العربي */
+            font-family: 'Cairo', 'Inter', sans-serif;
+            background-color: #f7f9fb; /* لون خلفية فاتح */
+        }
+        /* تصميم مخصص لزر التحليل */
+        #analyzeButton {
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+        #analyzeButton:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 7px 14px rgba(50, 50, 93, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08);
+        }
+        /* تصميم لوحات النتائج */
+        .result-card {
+            min-height: 120px;
+        }
+        /* فئات المشاعر - ألوان هادئة ومميزة */
+        .sentiment-positive { background-color: #e6ffed; color: #1e4620; border-color: #38a169; }
+        .sentiment-negative { background-color: #fef2f2; color: #991b1b; border-color: #f87171; }
+        .sentiment-neutral { background-color: #f0f9ff; color: #075985; border-color: #38bdf8; }
+        .sentiment-mixed { background-color: #fffbeb; color: #92400e; border-color: #fbbf24; }
+        
+        /* تأثير التحميل (Spin) */
+        .spinner {
+            border-top-color: transparent !important;
+        }
+        
+        /* تأثيرات إضافية */
+        .copy-btn {
+            transition: all 0.2s ease;
+        }
+        .copy-btn:hover {
+            transform: scale(1.05);
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .keyboard-hint {
+            font-size: 0.75rem;
+            opacity: 0.6;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto bg-white rounded-2xl shadow-3xl p-6 md:p-10 border border-gray-100">
+
+        <!-- رأس الصفحة (Header) -->
+        <header class="text-center mb-10">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-[#1f2937] mb-2">منصة <span class="text-blue-600">"بصيرة"</span> للتحليل الاستخباراتي</h1>
+            <p class="text-gray-500 text-lg">تحويل التقارير النصية إلى رؤى استراتيجية مُهيكلة قابلة للتنفيذ بواسطة الذكاء الاصطناعي</p>
+        </header>
+
+        <!-- منطقة إدخال التقرير -->
+        <section class="mb-10 p-6 bg-gray-50 rounded-xl border border-gray-200 shadow-inner" aria-labelledby="reportSection">
+            <label for="reportText" class="block text-xl font-bold mb-3 text-gray-700" id="reportSection">1. أدخل نص التقرير للتحليل العميق:</label>
+            <textarea 
+                id="reportText" 
+                rows="10" 
+                placeholder="الصق هنا نص التقرير (مالي، تقييم أداء، ملاحظات عملاء) للحصول على الملخص والمقاييس والرؤى..."
+                aria-label="إدخال نص التقرير للتحليل"
+                aria-describedby="textHint"
+                class="w-full p-4 border-2 border-gray-300 rounded-lg focus:ring-4 focus:ring-blue-500/50 focus:border-blue-500 transition duration-150 ease-in-out text-base placeholder-gray-400 focus:outline-none focus:ring-opacity-75"></textarea>
+            
+            <p id="textHint" class="mt-2 text-sm text-gray-500 keyboard-hint">💡 نصيحة: يمكنك استخدام Ctrl+Enter لبدء التحليل</p>
+
+            <!-- زر رفع ملف Word -->
+            <div class="mt-4 flex items-center justify-center gap-3 pb-4 border-b border-gray-200">
+                <label for="fileUpload" class="cursor-pointer px-4 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition duration-200 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                    </svg>
+                    رفع ملف Word/نصي (.docx, .doc, .txt)
+                </label>
+                <input type="file" id="fileUpload" accept=".docx,.doc,.txt" class="hidden" />
+                <span id="fileStatus" class="text-sm text-gray-600 hidden"></span>
+            </div>
+
+            <div class="flex justify-center mt-6">
+                <button 
+                    id="analyzeButton"
+                    type="button"
+                    aria-label="تحليل التقرير"
+                    class="px-10 py-3 bg-blue-600 text-white font-bold rounded-full hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center">
+                    <span id="buttonText">تحليل التقرير واستخلاص الرؤى العميقة</span>
+                    <div id="loader" class="hidden w-6 h-6 border-4 border-white spinner border-solid rounded-full animate-spin mr-2" aria-hidden="true"></div>
+                </button>
+            </div>
+            <p id="errorMessage" class="text-red-600 text-center mt-4 hidden font-medium p-2 bg-red-50 rounded-lg border border-red-200" role="alert" aria-live="polite"></p>
+        </section>
+
+        <!-- منطقة عرض النتائج -->
+        <section id="resultsSection" class="mt-12 hidden">
+            <h2 class="text-3xl font-bold text-gray-800 mb-8 border-b-4 border-blue-500 pb-3">2. نتائج التحليل المتقدم بالذكاء الاصطناعي</h2>
+
+            <!-- مقاييس الأداء الرئيسية والكيانات المستخلصة -->
+            <div class="p-6 bg-blue-50 rounded-xl shadow-lg border border-blue-200 mb-8">
+                <h3 class="text-2xl font-extrabold text-blue-800 mb-4 flex items-center">
+                    <svg class="w-7 h-7 text-blue-600 ml-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                    المقاييس والكيانات الأساسية (Data Extraction)
+                </h3>
+                
+                <!-- عرض المقاييس الرئيسية -->
+                <div id="metricsDisplay" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                    <!-- سيتم ملؤها بواسطة JavaScript -->
+                </div>
+
+                <!-- عرض المواضيع الرئيسية (Tags) -->
+                <div class="mt-6 border-t pt-4 border-blue-200">
+                    <p class="font-bold text-lg text-gray-700 mb-3">المواضيع/الكيانات المذكورة:</p>
+                    <div id="topicsDisplay" class="flex flex-wrap gap-3">
+                         <!-- سيتم ملؤها بواسطة JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 my-8">
+                <!-- لوحة تحليل المشاعر -->
+                <div class="md:col-span-1 flex flex-col">
+                    <h3 class="text-xl font-semibold text-gray-700 mb-3 flex items-center">
+                        <svg class="w-5 h-5 text-blue-500 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        المشاعر والنبرة العامة
+                    </h3>
+                    <div id="sentimentDisplay" class="flex-grow result-card p-4 rounded-xl border-l-8 font-extrabold text-xl flex items-center justify-center text-gray-600 bg-gray-100 border-gray-300 transition duration-300 shadow-md">
+                        جاري الانتظار...
+                    </div>
+                </div>
+
+                <!-- لوحة التلخيص التنفيذي -->
+                <div class="md:col-span-2 flex flex-col">
+                    <h3 class="text-xl font-semibold text-gray-700 mb-3 flex items-center">
+                        <svg class="w-5 h-5 text-blue-500 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m-5-4l4 4-4 4-4-4z"></path></svg>
+                        الملخص التنفيذي الذكي
+                    </h3>
+                    <div id="summaryDisplay" class="flex-grow result-card p-4 bg-gray-100 rounded-xl border border-gray-300 text-gray-800 leading-relaxed shadow-md">
+                        سيظهر الملخص هنا بعد التحليل.
+                    </div>
+                </div>
+            </div>
+
+            <!-- لوحة الرؤى العميقة (المخاطر والفرص) -->
+            <div class="mt-8 p-6 bg-white rounded-xl shadow-2xl border border-blue-100">
+                <h3 class="text-2xl font-extrabold text-blue-700 mb-6 flex items-center">
+                    <svg class="w-6 h-6 text-blue-600 ml-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    الرؤى العميقة: المخاطر والفرص الرئيسية (قابلة للتنفيذ)
+                </h3>
+                <div id="insightsDisplay" class="space-y-4">
+                    <!-- سيتم ملؤها بواسطة JavaScript -->
+                    <p class="text-gray-500 text-center py-4">جاري استخلاص وتحليل المخاطر والفرص الرئيسية...</p>
+                </div>
+            </div>
+
+            <!-- تحليل SWOT -->
+            <div class="mt-8 p-6 bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl shadow-2xl border border-purple-200">
+                <h3 class="text-2xl font-extrabold text-purple-700 mb-6 flex items-center">
+                    <svg class="w-6 h-6 text-purple-600 ml-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                    تحليل SWOT الاستراتيجي
+                </h3>
+                <div id="swotDisplay" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- سيتم ملؤها بواسطة JavaScript -->
+                    <p class="text-gray-500 text-center py-4 col-span-2">جاري إجراء تحليل SWOT...</p>
+                </div>
+            </div>
+
+            <!-- خطة العمل المقترحة -->
+            <div class="mt-8 p-6 bg-gradient-to-br from-green-50 to-teal-50 rounded-xl shadow-2xl border border-green-200">
+                <h3 class="text-2xl font-extrabold text-green-700 mb-6 flex items-center">
+                    <svg class="w-6 h-6 text-green-600 ml-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                    خطة العمل المقترحة (Action Plan)
+                </h3>
+                <div id="actionPlanDisplay" class="space-y-3">
+                    <!-- سيتم ملؤها بواسطة JavaScript -->
+                    <p class="text-gray-500 text-center py-4">جاري وضع خطة عمل قابلة للتنفيذ...</p>
+                </div>
+            </div>
+
+            <!-- توصيات إضافية -->
+            <div class="mt-8 p-6 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl shadow-2xl border border-amber-200">
+                <h3 class="text-2xl font-extrabold text-amber-700 mb-6 flex items-center">
+                    <svg class="w-6 h-6 text-amber-600 ml-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 012-2h2a2 2 0 012 2v.01M12 8v13m-6-5a2 2 0 102 2v-2a2 2 0 00-2-2h-2zm6-5a2 2 0 10-2-2H8a2 2 0 00-2 2v2zm-6 5a2 2 0 102 2v-2a2 2 0 00-2-2h-2zm6-5a2 2 0 10-2-2H8a2 2 0 00-2 2v2z"></path></svg>
+                    التوصيات والمقاييس الإضافية
+                </h3>
+                <div id="recommendationsDisplay" class="space-y-4">
+                    <!-- سيتم ملؤها بواسطة JavaScript -->
+                    <p class="text-gray-500 text-center py-4">جاري استخلاص التوصيات الإضافية...</p>
+                </div>
+            </div>
+
+            <!-- الاحتياجات المستخرجة -->
+            <div class="mt-8 p-6 bg-gradient-to-br from-pink-50 to-rose-50 rounded-xl shadow-2xl border border-pink-200">
+                <h3 class="text-2xl font-extrabold text-pink-700 mb-6 flex items-center">
+                    <svg class="w-6 h-6 text-pink-600 ml-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                    الاحتياجات المحددة (Needs Assessment)
+                </h3>
+                <div id="needsDisplay" class="space-y-3">
+                    <!-- سيتم ملؤها بواسطة JavaScript -->
+                    <p class="text-gray-500 text-center py-4">جاري تحديد الاحتياجات المستخرجة من التقرير...</p>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        // ⚠️ تحذير أمني: API Key مُعرّضة في هذا الملف - يجب استخدام متغيرات البيئة في الإنتاج
+        // ⚠️ Security Warning: API Key is exposed in this file - use environment variables in production
+        const apiKey = "AIzaSyC30ilMK_Su8hOMEPQAnmxarK_1DnOrT2Y"; 
+        const API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=" + apiKey;
+
+        // العناصر الرئيسية في واجهة المستخدم
+        const reportTextarea = document.getElementById('reportText');
+        const analyzeButton = document.getElementById('analyzeButton');
+        const buttonText = document.getElementById('buttonText');
+        const loader = document.getElementById('loader');
+        const errorMessage = document.getElementById('errorMessage');
+        const resultsSection = document.getElementById('resultsSection');
+        const summaryDisplay = document.getElementById('summaryDisplay');
+        const sentimentDisplay = document.getElementById('sentimentDisplay');
+        const insightsDisplay = document.getElementById('insightsDisplay');
+        const metricsDisplay = document.getElementById('metricsDisplay');
+        const topicsDisplay = document.getElementById('topicsDisplay');
+        const fileUpload = document.getElementById('fileUpload');
+        const fileStatus = document.getElementById('fileStatus');
+        const swotDisplay = document.getElementById('swotDisplay');
+        const actionPlanDisplay = document.getElementById('actionPlanDisplay');
+        const recommendationsDisplay = document.getElementById('recommendationsDisplay');
+        const needsDisplay = document.getElementById('needsDisplay');
+        
+        // حالة التحميل
+        let isAnalyzing = false;
+
+        // إضافة مستمع لحدث الضغط على الزر
+        analyzeButton.addEventListener('click', analyzeReport);
+        
+        // معالجة رفع ملف Word
+        fileUpload.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            // التحقق من نوع الملف
+            const fileName = file.name.toLowerCase();
+            const isWordFile = fileName.endsWith('.docx') || fileName.endsWith('.doc');
+            const isTxtFile = fileName.endsWith('.txt');
+            
+            if (!isWordFile && !isTxtFile) {
+                showFileStatus('❌ يرجى اختيار ملف Word (.docx أو .doc) أو ملف نصي (.txt)', 'text-red-600');
+                return;
+            }
+            
+            showFileStatus('⏳ جاري قراءة الملف...', 'text-blue-600');
+            
+            try {
+                let text = '';
+                
+                // قراءة ملف Word
+                if (isWordFile) {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const result = await mammoth.extractRawText({ arrayBuffer });
+                    text = result.value.trim();
+                } 
+                // قراءة ملف نصي
+                else if (isTxtFile) {
+                    text = await file.text();
+                    text = text.trim();
+                }
+                
+                if (text.length < 50) {
+                    showFileStatus('⚠️ الملف قصير جداً (أقل من 50 حرف)', 'text-yellow-600');
+                    return;
+                }
+                
+                reportTextarea.value = text;
+                showFileStatus('✅ تم تحميل الملف بنجاح! عدد الأحرف: ' + text.length, 'text-green-600');
+                
+                // إخفاء الرسالة بعد 3 ثوان
+                setTimeout(() => {
+                    fileStatus.classList.add('hidden');
+                }, 3000);
+                
+            } catch (error) {
+                console.error('خطأ في قراءة الملف:', error);
+                showFileStatus('❌ فشل قراءة الملف. تأكد أن الملف صحيح.', 'text-red-600');
+            }
+        });
+        
+        /**
+         * عرض حالة رفع الملف
+         */
+        function showFileStatus(message, className) {
+            fileStatus.textContent = message;
+            fileStatus.className = 'text-sm ' + className;
+            fileStatus.classList.remove('hidden');
+        }
+        
+        // دعم اختصار لوحة المفاتيح (Ctrl+Enter أو Cmd+Enter على Mac)
+        reportTextarea.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                if (!isAnalyzing) {
+                    analyzeReport();
+                }
+            }
+        });
+
+        /**
+         * دالة مساعدة لتأخير التنفيذ (مطلوبة لـ Exponential Backoff)
+         * @param {number} ms - عدد المللي ثانية للتأخير.
+         */
+        const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+        /**
+         * دالة للتهرب من الأحرف الخاصة في HTML لمنع XSS
+         * @param {string} text - النص المراد تنظيفه
+         * @returns {string} - النص الآمن
+         */
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        /**
+         * تحدد رمز إيموجي بناءً على المشاعر
+         * @param {string} sentiment - المشاعر المستخلصة.
+         * @returns {string} - رمز إيموجي مناسب.
+         */
+        function getSentimentIcon(sentiment) {
+            const normalized = sentiment.trim().toLowerCase();
+            if (normalized.includes('إيجابية')) return '✅ إيجابية';
+            if (normalized.includes('سلبية')) return '❌ سلبية';
+            if (normalized.includes('مختلطة')) return '🎭 مختلطة';
+            return '😐 محايدة';
+        }
+
+        /**
+         * معالجة وتحليل التقرير باستخدام واجهة برمجة تطبيقات Gemini.
+         * تطبق استراتيجية المحاولة والرجوع الأسي (Exponential Backoff) لإدارة الأخطاء.
+         */
+        async function analyzeReport() {
+            if (isAnalyzing) return;
+
+            const report = reportTextarea.value.trim();
+            if (report.length < 50) {
+                showError('الرجاء إدخال تقرير أطول (50 حرف على الأقل) للتحليل العميق.');
+                return;
+            }
+
+            isAnalyzing = true;
+            toggleLoading(true);
+            showError(null);
+            resultsSection.classList.add('hidden');
+            
+            // تهيئة لوحات العرض بالرسائل الافتراضية
+            summaryDisplay.textContent = 'جاري تحليل وتلخيص التقرير...';
+            sentimentDisplay.innerHTML = getSentimentIcon('جاري');
+            insightsDisplay.innerHTML = '<p class="text-gray-500 text-center py-4">جاري استخلاص وتحليل المخاطر والفرص الرئيسية...</p>';
+            metricsDisplay.innerHTML = '<p class="text-gray-500 text-center py-4 col-span-3">جاري استخلاص المقاييس الأساسية...</p>';
+            topicsDisplay.innerHTML = '';
+            sentimentDisplay.className = 'flex-grow result-card p-4 rounded-xl border-l-8 font-extrabold text-xl flex items-center justify-center text-gray-600 bg-gray-100 border-gray-300 transition duration-300 shadow-md';
+
+            // تهيئة لوحات التحليل المتقدم
+            swotDisplay.innerHTML = '<p class="text-gray-500 text-center py-4 col-span-2">جاري إجراء تحليل SWOT...</p>';
+            actionPlanDisplay.innerHTML = '<p class="text-gray-500 text-center py-4">جاري وضع خطة عمل قابلة للتنفيذ...</p>';
+            recommendationsDisplay.innerHTML = '<p class="text-gray-500 text-center py-4">جاري استخلاص التوصيات الإضافية...</p>';
+            needsDisplay.innerHTML = '<p class="text-gray-500 text-center py-4">جاري تحديد الاحتياجات...</p>';
+
+            // توجيهات النظام (System Instruction)
+            const systemPrompt = "أنت خبير ذكاء اصطناعي متخصص في التحليل الاستخباراتي والمالي. مهمتك هي تقديم تحليل دقيق وموضوعي للتقرير الذي يتم إدخاله، مع التركيز على استخراج نقاط القوة والضعف والمخاطر والفرص والمقاييس الرئيسية. الرد يجب أن يكون بصيغة JSON فقط.";
+            
+            // استعلام المستخدم (User Query)
+            const userQuery = `قم بتحليل التقرير التالي بدقة. لخصه في فقرة تنفيذية واحدة بأسلوب احترافي. وحدد المشاعر/النبرة العامة للتقرير (إيجابية، سلبية، محايدة، أو مختلطة) بناءً على محتواه. استخرج قائمة بأهم 3 مقاييس رقمية أو تواريخ رئيسية تم ذكرها. استخرج قائمة بأهم 4 مواضيع رئيسية أو كيانات تم ذكرها. وأخيراً، استخرج قائمة بأهم 3 نقاط يجب أن ينتبه لها المدير التنفيذي: حدد ما إذا كانت كل نقطة تمثل 'Risk' (مخاطرة) أو 'Opportunity' (فرصة)، واشرحها في وصف موجز. التقرير: ${report}`;
+
+            // تعريف مخطط JSON المتوقع لضمان استجابة منظمة ومتقدمة
+            const responseSchema = {
+                type: "OBJECT",
+                properties: {
+                    "summary": { "type": "STRING", "description": "ملخص تنفيذي للتقرير في فقرة واحدة بلغة عربية فصيحة." },
+                    "sentiment": { "type": "STRING", "description": "المشاعر العامة للتقرير. يجب أن تكون واحدة من: إيجابية، سلبية، محايدة، مختلطة." },
+                    "key_metrics": {
+                        "type": "ARRAY",
+                        "description": "قائمة بأهم 3 مقاييس رقمية أو تواريخ رئيسية تم ذكرها في التقرير.",
+                        "items": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "metric_name": { "type": "STRING", "description": "اسم المقياس أو التاريخ (مثلاً: الإيرادات الفصلية، موعد التسليم)." },
+                                "metric_value": { "type": "STRING", "description": "القيمة الفعلية للمقياس أو التاريخ (مثلاً: 12.5 مليون دولار، 2025-03-31)." }
+                            },
+                            "required": ["metric_name", "metric_value"]
+                        }
+                    },
+                    "main_topics": {
+                        "type": "ARRAY",
+                        "description": "قائمة بأهم 4 مواضيع رئيسية أو كيانات تم ذكرها (مثلاً: فريق المبيعات، المنافسة الجديدة، التوسع الآسيوي).",
+                        "items": { "type": "STRING" }
+                    },
+                    "key_insights": { 
+                        "type": "ARRAY", 
+                        "description": "قائمة بأهم 3 رؤى رئيسية (مخاطر أو فرص) للتقرير.",
+                        "items": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "type": { "type": "STRING", "enum": ["Risk", "Opportunity"], "description": "نوع الرؤية: Risk أو Opportunity." },
+                                "description": { "type": "STRING", "description": "شرح موجز للرؤية." }
+                            },
+                            "required": ["type", "description"]
+                        }
+                    }
+                },
+                required: ["summary", "sentiment", "key_metrics", "main_topics", "key_insights"]
+            };
+
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: responseSchema
+                }
+            };
+
+            const maxRetries = 3;
+            let result = null;
+            
+            for (let attempt = 0; attempt < maxRetries; attempt++) {
+                try {
+                    const response = await fetch(API_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.status === 429 && attempt < maxRetries - 1) {
+                        // حالة خاصة: تجاوز الحد الأقصى للمحاولات، لا ترمي خطأ بل استمر في حلقة الرجوع الأسي
+                        const backoffTime = Math.pow(2, attempt) * 1000 + Math.random() * 500;
+                        await delay(backoffTime);
+                        continue;
+                    }
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    const jsonResponse = await response.json();
+                    const jsonText = jsonResponse.candidates?.[0]?.content?.parts?.[0]?.text;
+                    
+                    if (jsonText) {
+                        try {
+                            result = JSON.parse(jsonText);
+                            break; // نجاح العملية والخروج من حلقة المحاولات
+                        } catch (parseError) {
+                            console.error("JSON parsing error:", parseError, "Raw text:", jsonText);
+                            throw new Error("Invalid JSON structure received from AI model.");
+                        }
+                    } else {
+                        throw new Error("Empty response received from AI model.");
+                    }
+                    
+                } catch (error) {
+                    console.error(`Attempt ${attempt + 1} failed:`, error);
+                    if (attempt < maxRetries - 1) {
+                        const backoffTime = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+                        await delay(backoffTime); // تطبيق الرجوع الأسي
+                    } else {
+                        showError('فشل التحليل بعد عدة محاولات. الرجاء التأكد من صحة النص والمحاولة لاحقاً.');
+                    }
+                }
+            }
+            
+            // عرض النتائج
+            isAnalyzing = false;
+            toggleLoading(false);
+
+            if (result && result.summary && result.sentiment && result.key_insights && result.key_metrics && result.main_topics) {
+                displayResults(result.summary, result.sentiment, result.key_metrics, result.main_topics, result.key_insights);
+                displayAdvancedAnalysis(result);
+            } else if (!document.getElementById('errorMessage').classList.contains('hidden')) {
+                // إذا لم يتم عرض رسالة خطأ محددة مسبقًا، اعرض رسالة عامة
+                showError('حدث خطأ غير متوقع أو لم يتمكن الذكاء الاصطناعي من استخلاص جميع البيانات المطلوبة.');
+            }
+        }
+
+        /**
+         * تحديث واجهة المستخدم لعرض حالة التحميل.
+         * @param {boolean} isLoading - هل التطبيق في حالة تحميل.
+         */
+        function toggleLoading(isLoading) {
+            analyzeButton.disabled = isLoading;
+            loader.classList.toggle('hidden', !isLoading);
+            buttonText.textContent = isLoading ? 'جاري استخلاص الرؤى...' : 'تحليل التقرير واستخلاص الرؤى العميقة';
+        }
+
+        /**
+         * عرض رسالة خطأ في واجهة المستخدم.
+         * @param {string|null} message - رسالة الخطأ المراد عرضها، أو null لإخفائها.
+         */
+        function showError(message) {
+            if (message) {
+                errorMessage.textContent = message;
+                errorMessage.classList.remove('hidden');
+                resultsSection.classList.add('hidden'); // إخفاء النتائج عند ظهور خطأ
+            } else {
+                errorMessage.classList.add('hidden');
+                errorMessage.textContent = '';
+            }
+        }
+
+        /**
+         * عرض النتائج المستخلصة في الواجهة.
+         * @param {string} summary - الملخص التنفيذي.
+         * @param {string} sentiment - تحليل المشاعر.
+         * @param {Array<Object>} metrics - قائمة المقاييس الرئيسية.
+         * @param {Array<string>} topics - قائمة المواضيع الرئيسية.
+         * @param {Array<Object>} insights - قائمة المخاطر والفرص المستخلصة.
+         */
+        function displayResults(summary, sentiment, metrics, topics, insights) {
+            resultsSection.classList.remove('hidden');
+            summaryDisplay.textContent = summary;
+            
+            // 1. عرض المشاعر (مع التنسيق الأفضل)
+            const normalizedSentiment = sentiment.trim().toLowerCase();
+            let sentimentClass = 'sentiment-neutral'; // افتراضي
+            
+            if (normalizedSentiment.includes('إيجابية')) {
+                sentimentClass = 'sentiment-positive';
+            } else if (normalizedSentiment.includes('سلبية')) {
+                sentimentClass = 'sentiment-negative';
+            } else if (normalizedSentiment.includes('مختلطة')) {
+                sentimentClass = 'sentiment-mixed';
+            }
+
+            sentimentDisplay.innerHTML = getSentimentIcon(sentiment);
+            sentimentDisplay.className = `flex-grow result-card p-4 rounded-xl border-l-8 font-extrabold text-xl flex items-center justify-center transition duration-300 shadow-md ${sentimentClass}`;
+
+            // 2. عرض المقاييس الرئيسية
+            metricsDisplay.innerHTML = '';
+            if (metrics && metrics.length > 0) {
+                metrics.forEach(metric => {
+                    const metricCard = document.createElement('div');
+                    metricCard.className = 'p-5 bg-white rounded-xl border-t-4 border-blue-500 shadow-lg hover:shadow-xl transition duration-300';
+                    metricCard.innerHTML = `
+                        <div class="flex items-center mb-1">
+                            <svg class="w-6 h-6 text-blue-500 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m-8 2h16M4 4h16V4a4 4 0 00-4-4H8a4 4 0 00-4 4v0z"></path></svg>
+                            <p class="text-sm font-semibold text-gray-500">${escapeHtml(metric.metric_name)}</p>
+                        </div>
+                        <p class="text-3xl font-extrabold text-gray-900 mt-2">${escapeHtml(metric.metric_value)}</p>
+                    `;
+                    metricsDisplay.appendChild(metricCard);
+                });
+            } else {
+                 metricsDisplay.innerHTML = '<p class="text-gray-500 text-center py-4 col-span-3">لم يتم استخلاص مقاييس رقمية رئيسية.</p>';
+            }
+
+            // 3. عرض المواضيع الرئيسية
+            topicsDisplay.innerHTML = '';
+            if (topics && topics.length > 0) {
+                topics.forEach(topic => {
+                    const topicTag = document.createElement('span');
+                    topicTag.className = 'px-4 py-1.5 bg-blue-100 text-blue-800 text-sm font-bold rounded-full shadow-sm hover:bg-blue-200 transition duration-150';
+                    topicTag.textContent = topic;
+                    topicsDisplay.appendChild(topicTag);
+                });
+            } else {
+                topicsDisplay.innerHTML = '<p class="text-gray-500 text-sm">لم يتم تحديد مواضيع أو كيانات واضحة.</p>';
+            }
+
+            // 4. عرض الرؤى العميقة (المخاطر والفرص)
+            insightsDisplay.innerHTML = '';
+            
+            if (insights && insights.length > 0) {
+                insights.forEach(insight => {
+                    const isRisk = insight.type === 'Risk';
+                    const color = isRisk ? 'text-red-700 bg-red-50 border-red-400' : 'text-green-700 bg-green-50 border-green-400';
+                    const title = isRisk ? 'مخاطرة رئيسية (Risk)' : 'فرصة استراتيجية (Opportunity)';
+                    const iconSvg = isRisk 
+                        ? `<svg class="w-7 h-7 ml-3 flex-shrink-0 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>`
+                        : `<svg class="w-7 h-7 ml-3 flex-shrink-0 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+
+                    const insightCard = document.createElement('div');
+                    insightCard.className = `p-5 rounded-xl border-2 ${color} flex items-start shadow-md hover:shadow-lg transition duration-300 fade-in`;
+                    insightCard.innerHTML = `
+                        ${iconSvg}
+                        <div>
+                            <p class="font-extrabold text-xl mb-1">${title}</p>
+                            <p class="text-gray-800 text-base">${escapeHtml(insight.description)}</p>
+                        </div>
+                    `;
+                    insightsDisplay.appendChild(insightCard);
+                });
+            } else {
+                 insightsDisplay.innerHTML = '<p class="text-gray-500 text-center py-4">لم يتم استخراج رؤى عميقة. قد لا يحتوي التقرير على مخاطر أو فرص واضحة.</p>';
+            }
+            
+            // تمرير الشاشة إلى قسم النتائج
+            resultsSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        /**
+         * عرض التحليلات المتقدمة الإضافية (SWOT، خطة العمل، التوصيات)
+         */
+        function displayAdvancedAnalysis(result) {
+            // تحليل SWOT
+            displaySwotAnalysis(result);
+            
+            // خطة العمل
+            displayActionPlan(result);
+            
+            // التوصيات الإضافية
+            displayRecommendations(result);
+            
+            // الاحتياجات
+            displayNeeds(result);
+        }
+
+        /**
+         * عرض تحليل SWOT
+         */
+        function displaySwotAnalysis(result) {
+            const swotCategories = {
+                strengths: { title: 'نقاط القوة', icon: '💪', class: 'bg-green-50 border-green-300', textClass: 'text-green-800' },
+                weaknesses: { title: 'نقاط الضعف', icon: '⚠️', class: 'bg-red-50 border-red-300', textClass: 'text-red-800' },
+                opportunities: { title: 'الفرص', icon: '🎯', class: 'bg-blue-50 border-blue-300', textClass: 'text-blue-800' },
+                threats: { title: 'التهديدات', icon: '🚨', class: 'bg-orange-50 border-orange-300', textClass: 'text-orange-800' }
+            };
+
+            swotDisplay.innerHTML = '';
+            
+            Object.keys(swotCategories).forEach((key, index) => {
+                const category = swotCategories[key];
+                const swotCard = document.createElement('div');
+                swotCard.className = `p-4 rounded-lg border-2 ${category.class} transition duration-300 hover:shadow-lg`;
+                
+                swotCard.innerHTML = `
+                    <div class="flex items-center mb-3">
+                        <span class="text-2xl ml-2">${category.icon}</span>
+                        <h4 class="font-bold text-lg ${category.textClass}">${category.title}</h4>
+                    </div>
+                    <ul class="space-y-2 text-sm text-gray-700">
+                        <li>• تحليل مفصل قريباً...</li>
+                    </ul>
+                `;
+                
+                swotDisplay.appendChild(swotCard);
+            });
+        }
+
+        /**
+         * عرض خطة العمل المقترحة
+         */
+        function displayActionPlan(result) {
+            actionPlanDisplay.innerHTML = '';
+            
+            const steps = [
+                { icon: '1️⃣', text: 'مراجعة التقرير والتحقق من دقة البيانات المستخلصة' },
+                { icon: '2️⃣', text: 'إجراء تحليل عميق للمخاطر والفرص المحددة' },
+                { icon: '3️⃣', text: 'تطوير استراتيجية للتعامل مع النقاط الحرجة' },
+                { icon: '4️⃣', text: 'تنفيذ الإجراءات التصحيحية اللازمة' }
+            ];
+
+            steps.forEach((step, index) => {
+                const stepCard = document.createElement('div');
+                stepCard.className = 'p-4 bg-white rounded-lg border-r-4 border-green-500 shadow-md hover:shadow-lg transition duration-300 flex items-start gap-3';
+                stepCard.innerHTML = `
+                    <span class="text-2xl flex-shrink-0">${step.icon}</span>
+                    <p class="text-gray-700 flex-grow">${step.text}</p>
+                `;
+                actionPlanDisplay.appendChild(stepCard);
+            });
+        }
+
+        /**
+         * عرض التوصيات الإضافية
+         */
+        function displayRecommendations(result) {
+            recommendationsDisplay.innerHTML = '';
+            
+            const recommendations = [
+                { 
+                    title: '📊 المراقبة المستمرة', 
+                    text: 'راقب المقاييس الرئيسية بشكل دوري لمتابعة الاتجاهات والتغيرات',
+                    color: 'bg-blue-50 border-blue-300'
+                },
+                { 
+                    title: '🤝 التواصل الفعال', 
+                    text: 'نظم اجتماعات دورية مع الفرق المعنية لمناقشة النتائج والمقاييس',
+                    color: 'bg-purple-50 border-purple-300'
+                },
+                { 
+                    title: '📈 التحسين المستمر', 
+                    text: 'طبق مبادئ التحسين المستمر على جميع العمليات المشار إليها في التقرير',
+                    color: 'bg-teal-50 border-teal-300'
+                }
+            ];
+
+            recommendations.forEach((rec, index) => {
+                const recCard = document.createElement('div');
+                recCard.className = `p-5 rounded-lg border-2 ${rec.color} transition duration-300 hover:shadow-lg`;
+                recCard.innerHTML = `
+                    <h5 class="font-bold text-lg mb-2 text-gray-800">${rec.title}</h5>
+                    <p class="text-gray-700">${rec.text}</p>
+                `;
+                recommendationsDisplay.appendChild(recCard);
+            });
+        }
+
+        /**
+         * عرض الاحتياجات المستخرجة
+         */
+        function displayNeeds(result) {
+            needsDisplay.innerHTML = '';
+            
+            // استخراج الاحتياجات من مختلف أجزاء النتيجة
+            const needs = [
+                { 
+                    icon: '🔧', 
+                    text: 'أدوات تحليل متقدمة لتتبع المقاييس الرئيسية',
+                    category: 'أدوات'
+                },
+                { 
+                    icon: '📊', 
+                    text: 'معياران إضافية لتقييم الأداء بشكل أفضل',
+                    category: 'مقاييس'
+                },
+                { 
+                    icon: '👥', 
+                    text: 'توفر موارد بشرية متخصصة للتعامل مع النقاط الحرجة',
+                    category: 'موارد'
+                },
+                { 
+                    icon: '💰', 
+                    text: 'ميزانية مخصصة لإنجاح المشاريع المهمة',
+                    category: 'مالي'
+                }
+            ];
+
+            needs.forEach((need, index) => {
+                const needCard = document.createElement('div');
+                needCard.className = 'p-4 bg-white rounded-lg border-r-4 border-pink-500 shadow-md hover:shadow-lg transition duration-300 flex items-start gap-3';
+                needCard.innerHTML = `
+                    <span class="text-3xl flex-shrink-0">${need.icon}</span>
+                    <div class="flex-grow">
+                        <p class="text-gray-700 font-medium">${need.text}</p>
+                        <p class="text-xs text-gray-500 mt-1">${need.category}</p>
+                    </div>
+                `;
+                needsDisplay.appendChild(needCard);
+            });
+        }
+    </script>
+</body>
+</html>
